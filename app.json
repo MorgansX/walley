@@ -9,14 +9,32 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": [
+          "metamask",
+          "trust",
+          "safe",
+          "rainbow",
+          "uniswap",
+          "1inch",
+          "metamask",
+          "trust",
+          "safe",
+          "rainbow",
+          "uniswap",
+          "1inch"
+        ]
+      },
+      "bundleIdentifier": "com.anonymous.walley"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.anonymous.walley"
     },
     "web": {
       "bundler": "metro",
