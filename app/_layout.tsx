@@ -14,9 +14,9 @@ function RootLayout() {
 		SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
 	});
 
-	if (!isConnected) {
-		return <WelcomePage />;
-	}
+	// if (!isConnected) {
+	// 	return <WelcomePage />;
+	// }
 
 	return (
 		<Tabs>
