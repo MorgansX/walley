@@ -1,11 +1,14 @@
 import { PageContainer } from "@/components/containers/PageContainer";
 import { Text, FlatList, View, StyleSheet, Dimensions } from "react-native";
 import { useWalletConnectModal } from "@walletconnect/modal-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { publicClient } from "@/hooks/useGetNetworkData";
 import { formatUnits } from "viem";
-import { CryptoCard } from "@/components/ui/CryptoCard";
+import { useWalletData } from "@/components/pages/WalletPage/useWalletData";
 import { shortenAddress } from "@/utils/shortenWalletAdrees";
+import { CryptoCard } from "@/components/ui/CryptoCard";
+import { WalletBalanceItem } from "@/components/ui/WalletBalanceItem";
+import CryptoCoinChart from "@/components/ui/CryptoCoinChart";
 
 export type CryptoCardItem = {
 	symbol: string;
@@ -13,11 +16,10 @@ export type CryptoCardItem = {
 };
 
 const { width } = Dimensions.get("window");
-const ITEM_WIDTH = width - 50; // Each item takes screen width minus 50px
+const ITEM_WIDTH = width - 50;
 const ITEM_SPACING = 10;
 const HORIZONTAL_SNAP = ITEM_WIDTH + ITEM_SPACING;
 
-// ERC-20 ABI for balanceOf function
 const ERC20_ABI = [
 	{
 		inputs: [{ name: "account", type: "address" }],
@@ -42,7 +44,6 @@ const ERC20_ABI = [
 	},
 ];
 
-// List of common ERC-20 tokens on Ethereum mainnet
 const COMMON_TOKENS = [
 	{ name: "Ethereum", symbol: "ETH", address: null, decimals: 18 },
 	{
@@ -91,14 +92,43 @@ const COMMON_TOKENS = [
 
 export const WalletPage = () => {
 	const { address: walletAddress } = useWalletConnectModal();
+	const {} = useWalletData();
 	const [tokenBalances, setTokenBalances] = useState([]);
-	const [isLoading, setIsLoading] = useState(true);
+	const [isLoading, setIsLoading] = useState(false);
 
-	const displayAddress = walletAddress
-		? `${walletAddress.slice(0, 5)}...${walletAddress.slice(walletAddress.length - 5)}`
-		: "Not connected";
+	const [currentIndex, setCurrentIndex] = useState(0);
+	const cryptoCardListConfig = useRef({
+		itemVisiblePercentThreshold: 50,
+	}).current;
+	const onViewableItemsChanged = useRef(({ viewableItems }) => {
+		if (viewableItems.length > 0) {
+			setCurrentIndex(viewableItems[0].index);
+		}
+	}).current;
 
-	// Function to get all token balances
+	const handleRenderDataItems = ({ item: { wallet, symbol } }) => {
+		const walletToDisplay = shortenAddress(wallet);
+		return (
+			<CryptoCard
+				walletToDisplay={walletToDisplay}
+				fullWalletNumber={wallet}
+				symbol={symbol}
+			/>
+		);
+	};
+
+	const handleRenderWalletBallanceItem = ({
+		item: { currency, amount, currentMarketPrice },
+	}) => {
+		return (
+			<WalletBalanceItem
+				currency={currency}
+				amount={amount}
+				currentMarketPrice={currentMarketPrice}
+			/>
+		);
+	};
+
 	const getAllTokenBalances = async () => {
 		if (!walletAddress) {
 			setIsLoading(false);
@@ -161,17 +191,6 @@ export const WalletPage = () => {
 		getAllTokenBalances();
 	}, [walletAddress]);
 
-	const renderTokenItem = ({ item }) => (
-		<View style={styles.tokenItem}>
-			<Text style={styles.tokenSymbol}>{item.symbol}</Text>
-			<Text style={styles.tokenBalance}>
-				{parseFloat(item.formattedBalance).toLocaleString(undefined, {
-					maximumFractionDigits: 4,
-				})}
-			</Text>
-		</View>
-	);
-
 	const renderData: Array<CryptoCardItem> = [
 		{
 			symbol: "ETH",
@@ -184,86 +203,57 @@ export const WalletPage = () => {
 		},
 	];
 
-	const handleRenderDataItems = ({ item: { wallet, symbol } }) => {
-		const walletToDisplay = shortenAddress(wallet);
-		return (
-			<CryptoCard
-				walletToDisplay={walletToDisplay}
-				fullWalletNumber={wallet}
-				symbol={symbol}
-			/>
-		);
-	};
+	const data = [
+		{ currency: "USDC", amount: 9000, currentMarketPrice: 1 },
+		{ currency: "BTC", amount: 0.5, currentMarketPrice: 65000 },
+		{ currency: "ETH", amount: 3.2, currentMarketPrice: 3500 },
+	];
 
 	return (
 		<PageContainer>
-			<FlatList<CryptoCardItem>
-				snapToInterval={HORIZONTAL_SNAP}
-				showsHorizontalScrollIndicator={false}
-				snapToAlignment="center"
-				decelerationRate="fast"
-				contentContainerStyle={styles.listContent}
-				horizontal
-				keyExtractor={({ wallet }) => wallet}
-				data={renderData}
-				renderItem={(item) => handleRenderDataItems(item)}
-			/>
-
-			<Text style={styles.balanceTitle}>Token Balances</Text>
+			<View style={styles.pageWrapper}>
+				<FlatList<CryptoCardItem>
+					snapToInterval={HORIZONTAL_SNAP}
+					showsHorizontalScrollIndicator={false}
+					snapToAlignment="center"
+					decelerationRate="fast"
+					contentContainerStyle={styles.listContent}
+					horizontal
+					keyExtractor={({ wallet }) => wallet}
+					data={renderData}
+					renderItem={handleRenderDataItems}
+					onViewableItemsChanged={onViewableItemsChanged}
+					viewabilityConfig={cryptoCardListConfig}
+				/>
+				{/*<CryptoCoinChart coinId="ETH" updateInterval={6000000} />*/}
+				<Text style={styles.balanceTitle}>Wallet Balance:</Text>
+				<FlatList
+					data={data}
+					renderItem={handleRenderWalletBallanceItem}
+					keyExtractor={(item) => item.currency}
+					showsVerticalScrollIndicator={false}
+					contentContainerStyle={styles.walletBalanceContent}
+				/>
+			</View>
 		</PageContainer>
 	);
 };
 
 const styles = StyleSheet.create({
+	pageWrapper: {
+		// flex: 1,
+	},
 	listContent: {
 		paddingHorizontal: 10,
-		height: 310,
-	},
-	addressContainer: {
-		marginBottom: 20,
-		padding: 16,
-		backgroundColor: "#f5f5f5",
-		borderRadius: 8,
-	},
-	addressLabel: {
-		fontSize: 14,
-		color: "#666",
-		marginBottom: 4,
-	},
-	addressText: {
-		fontSize: 16,
-		fontWeight: "bold",
+		height: 210,
 	},
 	balanceTitle: {
 		fontSize: 18,
 		fontWeight: "bold",
 		marginBottom: 12,
+		padding: 18,
 	},
-	tokenList: {
-		width: "100%",
-	},
-	tokenItem: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		paddingVertical: 12,
-		paddingHorizontal: 16,
-		borderBottomWidth: 1,
-		borderBottomColor: "#eee",
-	},
-	tokenSymbol: {
-		fontSize: 16,
-		fontWeight: "500",
-	},
-	tokenBalance: {
-		fontSize: 16,
-	},
-	loadingText: {
-		padding: 20,
-		textAlign: "center",
-	},
-	emptyText: {
-		padding: 20,
-		textAlign: "center",
-		color: "#888",
+	walletBalanceContent: {
+		paddingVertical: 16,
 	},
 });
